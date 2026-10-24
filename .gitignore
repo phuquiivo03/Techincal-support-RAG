@@ -25,3 +25,4 @@ npm-debug.log*
 .vercel
 .turbo
 coverage/
+.gitcommit-msg.txt
