@@ -19,6 +19,7 @@ async function postJson(url: string, body: unknown, apiKey: string): Promise<Res
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000),
       });
       // Retry transient failures only
       if (res.status === 429 || res.status >= 500) {

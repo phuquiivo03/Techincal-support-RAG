@@ -5,7 +5,7 @@ Upload PDF/Markdown/TXT documents, ask about incidents, and get answers with **i
 plus a **retrieval debugger** and a **measurable eval harness** (hit@k / MRR / threshold sweep).
 
 Stack: **Next.js (App Router) + shadcn/ui · Express + TypeScript · PostgreSQL + pgvector (Supabase) ·
-Gemini embeddings (free tier) · Groq LLM (free tier)**.
+Gemini embeddings (free tier) · Groq LLM — `openai/gpt-oss-120b` (free tier)**.
 
 ## Features
 
@@ -64,8 +64,10 @@ API keys live **only** in `server/.env`; the browser talks exclusively to the Ex
 
 ## Tuning retrieval
 
-- `SIMILARITY_THRESHOLD` (default 0.30) — chunks below this cosine similarity are dropped; if none
-  survive, the assistant declines to answer. Tune with `npm run eval` (threshold sweep table).
+- `SIMILARITY_THRESHOLD` (default 0.50) — chunks below this cosine similarity are dropped; if none
+  survive, the assistant declines to answer. Tuned from the eval sweep: 0.50 keeps 100% on-topic
+  coverage while rejecting 100% of off-topic questions (Gemini scores cluster high; unrelated text
+  still reaches ~0.45). Re-tune with `npm run eval` after changing chunking or models.
 - `DEFAULT_TOP_K` (default 5), chunk size/overlap in `server/src/modules/documents/chunker.ts`.
 - After any change: `npm run seed && npm run eval` and compare against `server/eval/RESULTS.md`.
 

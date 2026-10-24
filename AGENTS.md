@@ -2,7 +2,7 @@
 
 AI technical support assistant: RAG over uploaded technical docs (PDF/Markdown/TXT) with cited answers and a retrieval debugger.
 
-**Stack**: Next.js 15 (App Router) + shadcn/ui · Express 5 + TypeScript · Supabase Postgres + pgvector · Groq LLM (free tier) + Gemini embeddings (768-dim, free tier).
+**Stack**: Next.js 15+ (App Router) + shadcn/ui · Express 5 + TypeScript · Supabase Postgres + pgvector · Groq LLM `openai/gpt-oss-120b` (free tier; llama-3.3-70b-versatile was decommissioned) + Gemini embeddings (768-dim, free tier).
 
 ## Repository layout
 
@@ -36,7 +36,7 @@ docs/      DESIGN_GUIDE.md and other project docs
 - All env access goes through `config/env.ts` (zod-validated, fails fast at boot). No `process.env` elsewhere.
 - Errors: throw `HttpError` from `lib/errors.ts`; the global error middleware maps it to JSON responses.
 - DB: `pg` pool in `db/pool.ts`; schema lives in `db/migrate.ts` (idempotent, auto-runs at boot). Embeddings are `vector(768)` — must match `EMBEDDING_DIM` and the Gemini `outputDimensionality`.
-- Retrieval: cosine distance (`<=>`), similarity = `1 - distance`, HNSW index. Default top-k 5, threshold 0.30 (tune only via `npm run eval`).
+- Retrieval: cosine distance (`<=>`), similarity = `1 - distance`, HNSW index. Default top-k 5, threshold 0.50 (tuned via `npm run eval` — see `eval/RESULTS.md`: 100% hit@1, 100% off-topic rejection at 0.50).
 - Documents are replaced on re-upload of the same `file_name` (upsert semantics; seed script relies on it).
 
 ## Web conventions (`web/src`)

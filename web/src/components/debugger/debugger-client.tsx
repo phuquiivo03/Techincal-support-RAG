@@ -28,7 +28,7 @@ function scoreColor(score: number): string {
 export function DebuggerClient() {
   const [query, setQuery] = useState("");
   const [topK, setTopK] = useState(5);
-  const [threshold, setThreshold] = useState(0.3);
+  const [threshold, setThreshold] = useState(0.5);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<RetrieveResponse | null>(null);
 

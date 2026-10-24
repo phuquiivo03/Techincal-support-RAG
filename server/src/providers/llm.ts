@@ -19,18 +19,23 @@ export async function chatCompletion(messages: LlmMessage[]): Promise<string> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < RETRIES; attempt++) {
     try {
+      // gpt-oss reasoning models: keep answers fast + within budget
+      const body: Record<string, unknown> = {
+        model: env.LLM_MODEL,
+        messages,
+        temperature: 0.6,
+        max_completion_tokens: 2048,
+      };
+      if (env.LLM_MODEL.startsWith("openai/")) body.reasoning_effort = "low";
+
       const res = await fetch(API_URL, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${env.GROQ_API_KEY}`,
         },
-        body: JSON.stringify({
-          model: env.LLM_MODEL,
-          messages,
-          temperature: 0.2,
-          max_tokens: 1024,
-        }),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(60_000),
       });
 
       if (res.status === 429 || res.status >= 500) {

@@ -15,10 +15,10 @@ const envSchema = z.object({
 
   EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   EMBEDDING_DIM: z.coerce.number().int().positive().default(768),
-  LLM_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  LLM_MODEL: z.string().default("openai/gpt-oss-120b"),
 
   DEFAULT_TOP_K: z.coerce.number().int().min(1).max(10).default(5),
-  SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.3),
+  SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.5),
 });
 
 const parsed = envSchema.safeParse(process.env);

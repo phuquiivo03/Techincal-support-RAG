@@ -11,7 +11,7 @@ interface GoldenItem {
 }
 
 const EVAL_DIR = path.resolve(import.meta.dirname, "..", "eval");
-const THRESHOLDS = [0.2, 0.25, 0.3, 0.35, 0.4, 0.45];
+const THRESHOLDS = [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65];
 
 function pct(n: number, total: number): string {
   return `${Math.round((n / total) * 100)}%`;
