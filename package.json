@@ -1,0 +1,22 @@
+{
+  "name": "rag-tech-support",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI technical support assistant — RAG over technical docs with cited answers and a retrieval debugger",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm run dev -w @rag/server",
+    "dev:web": "npm run dev -w @rag/web",
+    "seed": "npm run seed -w @rag/server",
+    "eval": "npm run eval -w @rag/server",
+    "typecheck": "npm run typecheck -w @rag/server && npm run typecheck -w @rag/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

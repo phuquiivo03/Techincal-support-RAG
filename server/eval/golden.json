@@ -1,0 +1,66 @@
+[
+  {
+    "question": "Our Node.js API suddenly hangs, health checks time out and one CPU core is at 100% while the others are idle. How do I diagnose and fix it?",
+    "expectedTitle": "Node.js event loop blocking"
+  },
+  {
+    "question": "How do I measure event loop lag in Node.js and what should I alert on?",
+    "expectedTitle": "Node.js event loop blocking"
+  },
+  {
+    "question": "Postgres logs show 'deadlock detected' errors and some write requests fail with 500. What causes this and how do I fix it?",
+    "expectedTitle": "PostgreSQL deadlocks on concurrent updates"
+  },
+  {
+    "question": "Two transactions update the same rows in different order and Postgres kills one of them. How should we order row locks?",
+    "expectedTitle": "PostgreSQL deadlocks on concurrent updates"
+  },
+  {
+    "question": "We keep getting 'too many clients already' errors from PostgreSQL. How do I find out who is holding the connections?",
+    "expectedTitle": "PostgreSQL connection pool exhaustion"
+  },
+  {
+    "question": "What pool size should I configure for a small managed Postgres instance running several app processes?",
+    "expectedTitle": "PostgreSQL connection pool exhaustion"
+  },
+  {
+    "question": "Redis writes fail with 'OOM command not allowed when used memory > maxmemory'. What should I configure?",
+    "expectedTitle": "Redis out-of-memory, eviction and cache stampede"
+  },
+  {
+    "question": "After a hot cache key expires, hundreds of requests hit Postgres at once and latency spikes. How do I prevent this cache stampede?",
+    "expectedTitle": "Redis out-of-memory, eviction and cache stampede"
+  },
+  {
+    "question": "Our Docker container gets OOMKilled with exit code 137 even though the Node process looks fine. What's going on?",
+    "expectedTitle": "Docker container OOM-killed Node.js process"
+  },
+  {
+    "question": "How should I size max-old-space-size for a Node.js container limited to 512 MB of memory?",
+    "expectedTitle": "Docker container OOM-killed Node.js process"
+  },
+  {
+    "question": "Nginx intermittently returns 502 Bad Gateway with 'upstream timed out while reading response header' in the logs. How do I fix it?",
+    "expectedTitle": "Nginx 502 Bad Gateway from upstream timeouts"
+  },
+  {
+    "question": "Nginx logs 'upstream prematurely closed connection'. How do keepalive settings between Nginx and the upstream app factor in?",
+    "expectedTitle": "Nginx 502 Bad Gateway from upstream timeouts"
+  },
+  {
+    "question": "WebSocket clients reconnect every 60 seconds behind Nginx. The upgrade returns 101 but connections keep dropping. What should I do?",
+    "expectedTitle": "WebSocket connections dropping behind a proxy"
+  },
+  {
+    "question": "How do I implement ping pong heartbeats for a ws server and configure proxy_read_timeout for WebSocket routes?",
+    "expectedTitle": "WebSocket connections dropping behind a proxy"
+  },
+  {
+    "question": "What is the best recipe for neapolitan pizza dough?",
+    "expectedTitle": null
+  },
+  {
+    "question": "How do I renew my passport and what documents do I need to bring?",
+    "expectedTitle": null
+  }
+]
