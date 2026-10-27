@@ -1,6 +1,6 @@
 "use client";
 
-import type { Citation, Timings } from "@rag/shared";
+import type { ChatBehavior, Citation, Timings } from "@rag/shared";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { AnswerBody } from "./answer-body";
@@ -11,6 +11,8 @@ export interface UiMessage {
   content: string;
   sources?: Citation[];
   sufficient?: boolean;
+  /** which behavior the pipeline decided on (clarify renders its own card) */
+  behavior?: ChatBehavior;
   timings?: Timings;
   model?: string;
 }
@@ -80,7 +82,9 @@ export function ChatMessage({ message }: { message: UiMessage }) {
     );
   }
 
-  if (message.sufficient === false) {
+  // Abstain: the retrieval gate found nothing above threshold, or the model
+  // refused an uncovered question — amber "not in the knowledge base" card.
+  if (message.sufficient === false || message.behavior === "abstain") {
     return (
       <div className="flex justify-start">
         <div className="w-full max-w-[92%] space-y-3 rounded-3xl rounded-bl-lg border border-amber-200 bg-amber-50 p-4 sm:max-w-[80%]">
@@ -98,9 +102,43 @@ export function ChatMessage({ message }: { message: UiMessage }) {
     );
   }
 
+  // Clarify: essential information is missing — the assistant asks one targeted
+  // question instead of guessing. Distinct card so it never reads as an answer.
+  if (message.behavior === "clarify") {
+    return (
+      <div className="flex justify-start">
+        <div className="w-full max-w-[92%] space-y-3 rounded-3xl rounded-bl-lg border border-stone-200 bg-accent p-4 sm:max-w-[80%]">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-stone-300 bg-white/70 text-stone-700">
+              Needs one more detail
+            </Badge>
+          </div>
+          <AnswerBody answer={message.content} />
+          {message.sources && message.sources.length > 0 ? (
+            <div className="space-y-1.5 border-t border-stone-200/70 pt-3">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-stone-400">Found in the knowledge base</p>
+              <SourceChips sources={message.sources} />
+            </div>
+          ) : null}
+          {message.timings ? (
+            <LatencyBadge timings={message.timings} model={message.model} />
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  // Answer (default) and partial_answer — partial adds a badge admitting the gap.
   return (
     <div className="flex justify-start">
       <div className="w-full max-w-[92%] space-y-3 rounded-3xl rounded-bl-lg border border-stone-100 bg-card p-4 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] sm:max-w-[80%]">
+        {message.behavior === "partial_answer" ? (
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+              Partial answer — part is not covered
+            </Badge>
+          </div>
+        ) : null}
         <AnswerBody answer={message.content} />
         {message.sources && message.sources.length > 0 ? (
           <div className="space-y-1.5 border-t border-stone-100 pt-3">

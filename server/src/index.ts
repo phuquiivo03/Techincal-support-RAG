@@ -9,6 +9,7 @@ import { errorMiddleware } from "./lib/errors.js";
 import { log } from "./lib/logger.js";
 import { chatRouter } from "./modules/chat/routes.js";
 import { documentsRouter } from "./modules/documents/routes.js";
+import { evaluationRouter } from "./modules/evaluation/routes.js";
 import { retrievalRouter } from "./modules/retrieval/routes.js";
 import { checkEmbeddings } from "./providers/embeddings.js";
 import { checkLlm } from "./providers/llm.js";
@@ -57,6 +58,7 @@ app.use("/api", generalLimiter);
 app.use("/api/chat", aiLimiter, chatRouter);
 app.use("/api/retrieve", aiLimiter, retrievalRouter);
 app.use("/api/documents", documentsRouter);
+app.use("/api/eval", evaluationRouter); // POST /runs applies its own strict limiter
 
 app.use(errorMiddleware);
 

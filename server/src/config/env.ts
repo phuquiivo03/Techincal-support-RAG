@@ -18,7 +18,10 @@ const envSchema = z.object({
   LLM_MODEL: z.string().default("openai/gpt-oss-120b"),
 
   DEFAULT_TOP_K: z.coerce.number().int().min(1).max(10).default(5),
-  SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.5),
+  // 0.55, not 0.50: the eval suite's harder off-topic probes score up to 0.512
+  // (K8s RBAC 0.506, salary 0.512) while the weakest on-topic item scores 0.745
+  // — see docs/EVAL_FAILURE_ANALYSIS.md and eval/RESULTS.md threshold sweep.
+  SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.55),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -24,6 +24,7 @@ interface RetrievalRow {
   chunk_index: number;
   content: string;
   document_title: string;
+  file_name: string;
   similarity: number;
 }
 
@@ -51,6 +52,7 @@ export async function retrieve(query: string, options: RetrievalOptions = {}): P
             c.chunk_index,
             c.content,
             d.title AS document_title,
+            d.file_name,
             1 - (c.embedding <=> $1::vector) AS similarity
      FROM chunks c
      JOIN documents d ON d.id = c.document_id
@@ -68,6 +70,7 @@ export async function retrieve(query: string, options: RetrievalOptions = {}): P
       chunkId: row.chunk_id,
       documentId: row.document_id,
       documentTitle: row.document_title,
+      documentFileName: row.file_name,
       chunkIndex: row.chunk_index,
       score: Math.round(row.similarity * 1000) / 1000,
       content: row.content,

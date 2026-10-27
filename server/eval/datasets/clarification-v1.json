@@ -1,0 +1,195 @@
+{
+  "version": "clarification-v1",
+  "suite": "clarification",
+  "description": "Clarification decision suite (2026-10-25): does the assistant ASK for the one missing detail when interpretations diverge, and ANSWER when the question (or its conversation history) is already specific? Covers ambiguous questions, missing environment/version details, unavailable prior context, history-resolved ambiguity, safe no-clarification answers, partial answers, abstention, and ambiguity combined with conflicting KB documents. caveatKeywords on clarify items label the MISSING DETAIL a correct follow-up question must name — coverage >= 0.5 plus a real question mark is the pass bar.",
+  "items": [
+    {
+      "id": "cl-amb-001",
+      "category": "ambiguous",
+      "question": "Our API has become really slow lately. How do I fix it?",
+      "expectedBehavior": "clarify",
+      "expectedAnswer": "No component named — the KB maps slow-API symptoms onto at least three different fixes (Node.js event-loop blocking, Postgres pool exhaustion, Redis latency). A correct response asks ONE question naming the candidate components (e.g. 'Which component is slow — the Node.js API, PostgreSQL or Redis?') instead of picking one. Abstention is acceptable.",
+      "expectedFileNames": [],
+      "expectedChunks": [],
+      "expectedKeywords": [],
+      "caveatKeywords": ["which", "component", "database", "node"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-amb-002",
+      "category": "ambiguous",
+      "question": "Redis is struggling in production. Which settings should we change?",
+      "expectedBehavior": "clarify",
+      "expectedAnswer": "'Struggling' is undefined: the KB Redis doc covers eviction storms/data loss, OOM write rejections and cache stampedes — with different fixes per symptom. A correct response asks what symptom is actually happening (one targeted question) before recommending eviction policy, maxmemory or TTL changes. Abstention is acceptable.",
+      "expectedFileNames": [],
+      "expectedChunks": [],
+      "expectedKeywords": [],
+      "caveatKeywords": ["what", "which", "symptom", "problem"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-amb-003",
+      "category": "ambiguous",
+      "question": "Nginx is returning 502 for some requests. What should I change in the config?",
+      "expectedBehavior": "clarify",
+      "expectedAnswer": "A 502 has three distinct root causes in the KB (connect refused = upstream down, timed out reading header = slow endpoint, prematurely closed = keepalive mismatch), each with a different config fix. A correct response asks which failure signature the Nginx error log shows, naming the candidates, instead of changing an arbitrary directive. Abstention is acceptable.",
+      "expectedFileNames": [],
+      "expectedChunks": [],
+      "expectedKeywords": [],
+      "caveatKeywords": ["which", "refused", "timed", "prematurely"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-env-001",
+      "category": "underspecified",
+      "question": "How big should we set the Node.js heap for our service?",
+      "expectedBehavior": "clarify",
+      "expectedAnswer": "The KB rule sizes the heap relative to the container memory limit (heap ≈ 60–75% of the limit; 384 for a 512 MB container) — without the container limit no number can be correct. A correct response asks how much memory the container is allowed (one question) before giving a value. Abstention is acceptable.",
+      "expectedFileNames": [],
+      "expectedChunks": [],
+      "expectedKeywords": [],
+      "caveatKeywords": ["memory", "container", "ram", "how much", "limit"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-ref-001",
+      "category": "underspecified",
+      "question": "It's failing with the same error as yesterday again. Walk me through the fix.",
+      "expectedBehavior": "clarify",
+      "expectedAnswer": "The question refers to an error and an incident ('yesterday') that are unavailable — there is no prior conversation and the KB cannot know them. A correct response asks which error/component is involved (e.g. 'Which error are you seeing? Could you paste it?') instead of guessing a component. Abstention is acceptable.",
+      "expectedFileNames": [],
+      "expectedChunks": [],
+      "expectedKeywords": [],
+      "caveatKeywords": ["error", "which", "what", "paste"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-conflict-001",
+      "category": "ambiguous",
+      "question": "What value should we set statement_timeout to on the cluster?",
+      "expectedBehavior": "clarify",
+      "expectedAnswer": "AMBIGUOUS + CONFLICTING EVIDENCE: retrieval surfaces two contradictory KB documents — the incident report recommends a global 30s cap, the newer runbook (which supersedes it) recommends a global 300s with per-role overrides (30s OLTP / 120s workers). The right value depends on the workload and role, which the question does not state. A correct response asks which workload/role the timeout is for (OLTP API vs reporting/batch) instead of adopting one document blindly; it must NOT present either number as the unconditional answer. Abstention is acceptable.",
+      "expectedFileNames": [],
+      "expectedChunks": [],
+      "expectedKeywords": [],
+      "caveatKeywords": ["workload", "which", "oltp", "reporting"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-ctx-001",
+      "category": "contextual",
+      "question": "Got it. So what heap cap should we set for that Node.js container?",
+      "history": [
+        {
+          "role": "user",
+          "content": "Our Node.js API container keeps getting OOM-killed. Exit code 137, docker inspect shows OOMKilled: true, and the container has a 512 MB memory limit."
+        },
+        {
+          "role": "assistant",
+          "content": "The kernel is killing the container because Node sizes its old-space heap from the host's memory by default, not the container limit. Cap the V8 heap explicitly below the container limit and verify with v8.getHeapStatistics().heap_size_limit [1]."
+        }
+      ],
+      "expectedBehavior": "answer",
+      "expectedAnswer": "APPEARS ambiguous in isolation (no container limit stated) but the conversation history supplies the 512 MB limit — the assistant must use it and answer with the concrete cap: heap ≈ 60–75% of the container limit, i.e. NODE_OPTIONS=--max-old-space-size=384 for a 512 MB container. Asking 'which container?' again would be an unnecessary clarification.",
+      "expectedFileNames": ["docker-container-oom.md"],
+      "expectedChunks": [],
+      "expectedKeywords": ["max-old-space-size", "384"],
+      "caveatKeywords": [],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-ctx-002",
+      "category": "contextual",
+      "question": "Which Nginx directive should I change first to fix these 502s, and what does it do?",
+      "history": [
+        {
+          "role": "user",
+          "content": "Nginx returns 502 Bad Gateway intermittently. The error log shows 'upstream prematurely closed connection' while reading the response."
+        },
+        {
+          "role": "assistant",
+          "content": "That signature means the upstream closed the connection mid-response — classically an app restart or an idle-keepalive mismatch between Nginx and the app, not a slow endpoint [1]."
+        }
+      ],
+      "expectedBehavior": "answer",
+      "expectedAnswer": "In isolation 'these 502s' is an unresolvable reference; the history pins the failure signature ('upstream prematurely closed connection'), so the correct response answers with the matching fix — enable upstream keepalive (proxy_http_version 1.1 with proxy_set_header Connection \"\") instead of re-asking which 502 flavor it is.",
+      "expectedFileNames": ["nginx-502-upstream.md"],
+      "expectedChunks": [],
+      "expectedKeywords": ["keepalive", "proxy_http_version"],
+      "caveatKeywords": [],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-safe-001",
+      "category": "error_code",
+      "question": "Our Node.js container dies with exit code 137 and docker inspect reports OOMKilled: true. The container memory limit is 512 MB. How do we stop the restarts?",
+      "expectedBehavior": "answer",
+      "expectedAnswer": "Fully specified (symptom, error code, container limit): cap the V8 heap below the container limit — NODE_OPTIONS=--max-old-space-size=384 for a 512 MB container (heap ≈ 60–75% rule) — plus size headroom from measured peak usage. No clarification is needed; asking one would be unnecessary.",
+      "expectedFileNames": ["docker-container-oom.md"],
+      "expectedChunks": [],
+      "expectedKeywords": ["max-old-space-size", "384"],
+      "caveatKeywords": [],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-safe-002",
+      "category": "factual",
+      "question": "Postgres reports 'ERROR: deadlock detected (SQLSTATE 40P01)' when two batch jobs update overlapping rows. How do we stop the deadlocks?",
+      "expectedBehavior": "answer",
+      "expectedAnswer": "Fully specified (exact SQLSTATE, trigger): impose a consistent global lock order (sort ids before updating / SELECT ... FOR UPDATE ORDER BY), keep transactions short, and retry on 40P01 with jittered backoff. No clarification is needed.",
+      "expectedFileNames": ["postgres-deadlock.md"],
+      "expectedChunks": [],
+      "expectedKeywords": ["order", "retry"],
+      "caveatKeywords": [],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-part-001",
+      "category": "partial_evidence",
+      "question": "Turn on the PostgreSQL slow query log with a 500 ms threshold, and then set up pg_stat_statements so we can rank queries by total time.",
+      "expectedBehavior": "partial",
+      "expectedAnswer": "PARTIAL: the slow log part is covered (logging_collector, log_min_duration_statement = '500ms', log_line_prefix) — the pg_stat_statements part is explicitly NOT covered by the KB (the doc says it is a separate tool with its own runbook). Honest answer: give the logging config with citations and state that pg_stat_statements setup is not in the knowledge base.",
+      "expectedFileNames": ["postgres-slow-query-log.md"],
+      "expectedChunks": [],
+      "expectedKeywords": ["log_min_duration_statement", "500"],
+      "caveatKeywords": ["knowledge base", "not", "cover"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-part-002",
+      "category": "partial_evidence",
+      "question": "Configure Nginx rate limiting to 10 requests per second per client IP on /login, and also send a Slack alert whenever a client gets rate-limited.",
+      "expectedBehavior": "partial",
+      "expectedAnswer": "PARTIAL: the rate limiting part is covered (limit_req_zone with rate=10r/s keyed on $binary_remote_addr, limit_req_status 429) — Slack alerting / notification integrations are NOT covered by the KB. Honest answer: give the rate limiting config with citations and state the Slack part is not in the knowledge base.",
+      "expectedFileNames": ["nginx-rate-limiting.md"],
+      "expectedChunks": [],
+      "expectedKeywords": ["limit_req_zone", "rate"],
+      "caveatKeywords": ["knowledge base", "not", "cover"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-abst-001",
+      "category": "unanswerable",
+      "question": "How do I rotate the TLS certificates on our Kubernetes ingress controller?",
+      "expectedBehavior": "abstain",
+      "expectedAnswer": "Kubernetes/ingress/TLS rotation is not covered by the knowledge base at all. Correct behavior: refuse with an explicit not-covered admission (or the retrieval gate abstains) — never a fabricated cert-manager walkthrough.",
+      "expectedFileNames": [],
+      "expectedChunks": [],
+      "expectedKeywords": [],
+      "caveatKeywords": ["not", "context", "knowledge base", "cover"],
+      "forbiddenKeywords": []
+    },
+    {
+      "id": "cl-off-001",
+      "category": "off_topic",
+      "question": "What's a good weekly gym plan to prepare for a marathon?",
+      "expectedBehavior": "abstain",
+      "expectedAnswer": "Off-topic fitness question — the retrieval gate should reject it outright (sufficient=false, no LLM call).",
+      "expectedFileNames": [],
+      "expectedChunks": [],
+      "expectedKeywords": [],
+      "caveatKeywords": [],
+      "forbiddenKeywords": []
+    }
+  ]
+}

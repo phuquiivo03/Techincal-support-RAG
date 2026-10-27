@@ -21,6 +21,11 @@ Gemini embeddings (free tier) · Groq LLM — `openai/gpt-oss-120b` (free tier)*
   WebSockets, plus one-click incident cards in the UI.
 - **Eval harness** — `npm run eval` scores retrieval on a golden question set and writes a baseline
   to `server/eval/RESULTS.md`.
+- **Evaluation module** — `npm run eval:suite` runs a versioned, labeled dataset (factual /
+  paraphrase / multi-doc / error-code / off-topic) through the live pipeline and measures
+  Recall@5, MRR, answer keyword coverage, citation accuracy, abstention, latency and token usage.
+  Runs are stored in Postgres and compared on the `/eval` dashboard. See
+  [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Setup
 
@@ -36,6 +41,7 @@ cp server/.env.example server/.env
 
 npm run seed                    # migrate + index the 7 sample incident runbooks
 npm run eval                    # retrieval quality baseline (server/eval/RESULTS.md)
+npm run eval:suite              # full eval: labeled dataset through the live pipeline → /eval dashboard
 npm run dev                     # API on :4000, web on :3000
 ```
 
@@ -58,6 +64,10 @@ docs/      DESIGN_GUIDE.md — the "Softly" design system
 | `GET /api/documents/stats` | document/chunk counts |
 | `POST /api/chat` | `{question, history?}` → answer, citations, timings, `sufficient` |
 | `POST /api/retrieve` | `{query, topK?, threshold?}` → chunks + scores + context (no LLM) |
+| `GET /api/eval/datasets` | evaluation dataset versions + category counts |
+| `POST /api/eval/runs` | run the evaluation suite (rate-limited; makes real LLM calls) |
+| `GET /api/eval/runs[/:id]` | stored evaluation runs / full detail |
+| `DELETE /api/eval/runs/:id` | delete a stored run |
 | `GET /api/health` | DB + embedding + LLM status |
 
 API keys live **only** in `server/.env`; the browser talks exclusively to the Express API.

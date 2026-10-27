@@ -1,7 +1,9 @@
 import type { ChatResponse, ChatRole, Citation } from "@rag/shared";
 import { env } from "../../config/env.js";
-import { chatCompletion, type LlmMessage } from "../../providers/llm.js";
+import { chatCompletionDetailed, type LlmMessage } from "../../providers/llm.js";
 import { buildContext, retrieve } from "../retrieval/service.js";
+import { parseModelOutput } from "./behavior.js";
+import { normalizeCitationMarkers } from "./normalize.js";
 import { buildUserMessage, INSUFFICIENT_ANSWER, SYSTEM_PROMPT } from "./prompt.js";
 
 const HISTORY_TURNS = 6; // last N messages sent back for conversational context
@@ -12,9 +14,12 @@ function roundMs(ms: number): number {
 }
 
 /**
- * RAG pipeline: retrieve → (threshold guard) → prompt → answer.
+ * RAG pipeline: retrieve → (threshold guard) → prompt → parse behavior → answer.
  * When nothing clears the similarity threshold we skip the LLM entirely and
- * return a distinct sufficient=false response.
+ * return a distinct sufficient=false response (behavior "abstain"). The LLM's
+ * own decision (answer / clarify / partial_answer / abstain) is parsed from the
+ * mandatory first-line directive; a missing or malformed directive degrades to
+ * "answer" so the legacy pipeline never regresses.
  */
 export async function answerQuestion(question: string, history: ChatRole[] = []): Promise<ChatResponse> {
   const t0 = performance.now();
@@ -30,9 +35,11 @@ export async function answerQuestion(question: string, history: ChatRole[] = [])
     return {
       answer: INSUFFICIENT_ANSWER,
       sufficient: false,
+      behavior: "abstain",
       sources: [],
       timings: { ...timings, totalMs: roundMs(performance.now() - t0) },
       model: "none (no relevant context found)",
+      usage: null,
     };
   }
 
@@ -44,19 +51,25 @@ export async function answerQuestion(question: string, history: ChatRole[] = [])
   ];
 
   const t1 = performance.now();
-  const answer = await chatCompletion(messages);
+  const { content, usage } = await chatCompletionDetailed(messages);
+  const { behavior, answer: body } = parseModelOutput(content);
+  // The model sometimes writes citations as 【n】/【n†L9-L12】 — normalize the
+  // glyph to [n] so the UI can link them; the referenced index is unchanged.
+  const answer = normalizeCitationMarkers(body);
   timings.llmMs = roundMs(performance.now() - t1);
   timings.totalMs = roundMs(performance.now() - t0);
 
   const sources: Citation[] = retrieval.results.map((r) => ({
     index: r.rank,
+    chunkIndex: r.chunkIndex,
     chunkId: r.chunkId,
     documentId: r.documentId,
     documentTitle: r.documentTitle,
+    documentFileName: r.documentFileName,
     score: r.score,
     snippet:
       r.content.length > SNIPPET_LENGTH ? `${r.content.slice(0, SNIPPET_LENGTH)}…` : r.content,
   }));
 
-  return { answer, sufficient: true, sources, timings, model: env.LLM_MODEL };
+  return { answer, sufficient: true, behavior, sources, timings, model: env.LLM_MODEL, usage };
 }

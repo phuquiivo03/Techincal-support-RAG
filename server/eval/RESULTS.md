@@ -1,14 +1,14 @@
 # Retrieval eval baseline
 
-Run: 2026-10-24T10:49:14.263Z · embedding=gemini-embedding-001(768d) · topK=5
+Run: 2026-10-24T16:57:41.235Z · embedding=gemini-embedding-001(768d) · topK=5
 
 | Metric | Value |
 | --- | --- |
 | hit@1 | 100% (14/14) |
 | hit@3 | 100% (14/14) |
 | MRR | 1.000 |
-| avg embed latency | 400 ms |
-| avg pgvector latency | 291 ms |
+| avg embed latency | 406 ms |
+| avg pgvector latency | 334 ms |
 
 | Threshold | On-topic coverage | Off-topic rejection |
 | --- | --- | --- |

@@ -1,63 +1,93 @@
+import type { TokenUsage } from "@rag/shared";
 import { env } from "../config/env.js";
 import { log } from "../lib/logger.js";
+import { fetchWithRetry } from "./http.js";
 
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const RETRIES = 3;
+const RETRIES = 5;
 
 export interface LlmMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
+export interface ChatCompletionResult {
+  content: string;
+  usage: TokenUsage | null;
+}
+
 interface ChatCompletionResponse {
   choices?: { message?: { content?: string } }[];
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
   error?: { message: string };
 }
 
 /** Chat completion via Groq's OpenAI-compatible endpoint. */
 export async function chatCompletion(messages: LlmMessage[]): Promise<string> {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt < RETRIES; attempt++) {
-    try {
-      // gpt-oss reasoning models: keep answers fast + within budget
-      const body: Record<string, unknown> = {
-        model: env.LLM_MODEL,
-        messages,
-        temperature: 0.6,
-        max_completion_tokens: 2048,
-      };
-      if (env.LLM_MODEL.startsWith("openai/")) body.reasoning_effort = "low";
+  return (await chatCompletionDetailed(messages)).content;
+}
 
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${env.GROQ_API_KEY}`,
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(60_000),
-      });
+/** Same call, but also returns token usage (used by chat responses and the eval module). */
+export async function chatCompletionDetailed(messages: LlmMessage[]): Promise<ChatCompletionResult> {
+  // gpt-oss reasoning models: "low" emits ~20 reasoning tokens — enough to draft an
+  // answer, NOT enough to run the chat pipeline's INTERNAL DECISION CHECK (the
+  // clarification eval proved flat prompt rules are read but never executed at
+  // low effort: recall stuck at 0.33 across v1/v2 prompts while the successful
+  // clarify items coincided with heterogeneous multi-doc retrieval). "medium"
+  // gives the decision procedure compute. Reasoning tokens share the completion
+  // budget, so the ceiling rises too (a declared BEHAVIOR with a truncated body
+  // is worse than a longer answer).
+  const body: Record<string, unknown> = {
+    model: env.LLM_MODEL,
+    messages,
+    temperature: 0.6,
+    max_completion_tokens: 3072,
+  };
+  if (env.LLM_MODEL.startsWith("openai/")) body.reasoning_effort = "medium";
 
-      if (res.status === 429 || res.status >= 500) {
-        lastErr = new Error(`Groq responded ${res.status}`);
-        await new Promise((r) => setTimeout(r, 800 * 2 ** attempt));
-        continue;
-      }
+  const res = await fetchWithRetry({
+    url: API_URL,
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${env.GROQ_API_KEY}`,
+    },
+    body,
+    timeoutMs: 60_000,
+    retries: RETRIES,
+    backoffMs: (attempt) => 800 * 2 ** attempt,
+    // Free-tier 429s carry a retry-after — honor it instead of hammering
+    retryAfterMs: (res) => {
+      if (res.status !== 429) return null;
+      const retryAfterSec = Number(res.headers.get("retry-after"));
+      return Number.isFinite(retryAfterSec) && retryAfterSec > 0
+        ? Math.min((retryAfterSec + 0.5) * 1000, 90_000)
+        : null;
+    },
+    label: "Groq chat",
+  });
 
-      const json = (await res.json()) as ChatCompletionResponse;
-      if (!res.ok) {
-        throw new Error(`Groq error (${res.status}): ${json.error?.message ?? "unknown"}`);
-      }
-      const content = json.choices?.[0]?.message?.content;
-      if (!content) throw new Error("Groq returned an empty completion");
-      return content;
-    } catch (err) {
-      lastErr = err;
-      if (err instanceof Error && err.message.startsWith("Groq error")) throw err; // non-retryable
-      await new Promise((r) => setTimeout(r, 800 * 2 ** attempt));
-    }
+  const json = (await res.json()) as ChatCompletionResponse;
+  if (!res.ok) {
+    throw new Error(`Groq error (${res.status}): ${json.error?.message ?? "unknown"}`);
   }
-  throw new Error(`Groq chat failed after ${RETRIES} attempts: ${String(lastErr)}`);
+  const content = json.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Groq returned an empty completion");
+  const u = json.usage;
+  return {
+    content,
+    usage:
+      u && typeof u.total_tokens === "number"
+        ? {
+            promptTokens: u.prompt_tokens ?? 0,
+            completionTokens: u.completion_tokens ?? 0,
+            totalTokens: u.total_tokens,
+          }
+        : null,
+  };
 }
 
 /** Cheap connectivity + auth check used by /api/health. */

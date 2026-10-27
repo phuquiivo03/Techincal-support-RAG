@@ -14,6 +14,9 @@
     "dev:web": "npm run dev -w @rag/web",
     "seed": "npm run seed -w @rag/server",
     "eval": "npm run eval -w @rag/server",
+    "eval:suite": "npm run eval:suite -w @rag/server",
+    "test": "npm run test -w @rag/server",
+    "test:regression": "npm run test:regression -w @rag/server",
     "typecheck": "npm run typecheck -w @rag/server && npm run typecheck -w @rag/web"
   },
   "devDependencies": {

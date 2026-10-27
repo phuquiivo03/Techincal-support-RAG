@@ -48,6 +48,7 @@ export function ChatClient() {
             content: res.answer,
             sources: res.sources,
             sufficient: res.sufficient,
+            behavior: res.behavior,
             timings: res.timings,
             model: res.model,
           },

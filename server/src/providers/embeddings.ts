@@ -1,5 +1,6 @@
 import { env } from "../config/env.js";
 import { log } from "../lib/logger.js";
+import { fetchWithRetry } from "./http.js";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -12,28 +13,15 @@ interface EmbedResponse {
 }
 
 async function postJson(url: string, body: unknown, apiKey: string): Promise<Response> {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt < RETRIES; attempt++) {
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(30_000),
-      });
-      // Retry transient failures only
-      if (res.status === 429 || res.status >= 500) {
-        lastErr = new Error(`Gemini API responded ${res.status}`);
-        await sleep(500 * 2 ** attempt);
-        continue;
-      }
-      return res;
-    } catch (err) {
-      lastErr = err;
-      await sleep(500 * 2 ** attempt);
-    }
-  }
-  throw new Error(`Gemini embeddings failed after ${RETRIES} attempts: ${String(lastErr)}`);
+  return fetchWithRetry({
+    url,
+    headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+    body,
+    timeoutMs: 30_000,
+    retries: RETRIES,
+    backoffMs: (attempt) => 500 * 2 ** attempt,
+    label: "Gemini embeddings",
+  });
 }
 
 /**
@@ -66,10 +54,6 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
     for (const e of json.embeddings) out.push(e.values);
   }
   return out;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 /** Cheap connectivity + auth check used by /api/health. */

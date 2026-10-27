@@ -8,7 +8,10 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "eval:suite": "tsx scripts/eval-suite.ts",
+    "test": "tsx --test src/modules/*/*.test.ts",
+    "test:regression": "tsx scripts/regression.ts"
   },
   "dependencies": {
     "@rag/shared": "*",

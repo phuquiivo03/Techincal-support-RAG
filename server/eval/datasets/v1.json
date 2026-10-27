@@ -1,0 +1,224 @@
+{
+  "version": "v1",
+  "description": "Hand-labeled evaluation set for the 7 seeded incident docs (server/seed/*.md). Documents are labeled by file_name (unique in the DB, stable across re-seeds). Chunk indexes are as produced by the current chunker (maxSize 900, overlap 150) on the current seed content — re-generate labels with `npx tsx scripts/dev/dump-chunks.ts` if seed docs change. Keyword coverage is a lexical heuristic, not semantic grading: keywords are matched case-insensitively (dashes/whitespace normalized) against the generated answer.",
+  "items": [
+    {
+      "id": "fact-001",
+      "category": "factual",
+      "question": "How do I measure event loop lag in Node.js and what should I alert on?",
+      "expectedAnswer": "Measure event loop lag with a probe (e.g. an hrtime-based setInterval timer comparing expected vs actual tick time, exported as a Prometheus gauge such as nodejs_eventloop_lag). Sustained lag above ~100 ms means something is monopolizing the loop; alert with a warning at 100 ms and a critical alert at 1 s. After fixes, lag should stay under ~50 ms at peak.",
+      "expectedFileNames": ["nodejs-event-loop-blocking.md"],
+      "expectedChunks": [
+        { "fileName": "nodejs-event-loop-blocking.md", "chunkIndex": 3 },
+        { "fileName": "nodejs-event-loop-blocking.md", "chunkIndex": 6 }
+      ],
+      "expectedKeywords": ["event loop", "lag", "hrtime", "alert"]
+    },
+    {
+      "id": "fact-002",
+      "category": "factual",
+      "question": "What pool size should I configure for a small managed Postgres instance running several app processes?",
+      "expectedAnswer": "For a small managed instance a pool max of 5-10 per process is usually plenty; the total across all processes must stay under the provider's connection cap, leaving headroom for migrations and admin sessions. For many processes, route short queries through a transaction-mode pooler (e.g. Supabase Supavisor port 6543, PgBouncer).",
+      "expectedFileNames": ["postgres-pool-exhaustion.md"],
+      "expectedKeywords": ["pool", "5-10", "per process"]
+    },
+    {
+      "id": "fact-003",
+      "category": "factual",
+      "question": "How should I size max-old-space-size for a Node.js container limited to 512 MB of memory?",
+      "expectedAnswer": "Cap the V8 heap explicitly below the container limit, leaving room for non-heap memory (a common rule: heap at roughly 60-75% of the container limit). For a 512 MB container, set NODE_OPTIONS=--max-old-space-size=384 and verify with v8.getHeapStatistics() that heap_size_limit is ~384 MB inside the container.",
+      "expectedFileNames": ["docker-container-oom.md"],
+      "expectedChunks": [
+        { "fileName": "docker-container-oom.md", "chunkIndex": 5 }
+      ],
+      "expectedKeywords": ["max-old-space-size", "384", "heap"]
+    },
+    {
+      "id": "fact-004",
+      "category": "factual",
+      "question": "How do I implement ping pong heartbeats for a ws server and configure proxy_read_timeout for WebSocket routes?",
+      "expectedAnswer": "Server sends pings every 25-30 s (browsers cannot ping, but answer with pong frames automatically): track isAlive per client, ping on an interval, and terminate clients that missed a pong. In Nginx, set proxy_http_version 1.1, pass Upgrade/Connection headers, disable buffering, and raise proxy_read_timeout (and proxy_send_timeout) to e.g. 300 s — above heartbeat interval times two, so heartbeats keep it from ever firing.",
+      "expectedFileNames": ["websocket-drops.md"],
+      "expectedChunks": [
+        { "fileName": "websocket-drops.md", "chunkIndex": 4 },
+        { "fileName": "websocket-drops.md", "chunkIndex": 5 }
+      ],
+      "expectedKeywords": ["ping", "pong", "proxy_read_timeout"]
+    },
+    {
+      "id": "fact-005",
+      "category": "factual",
+      "question": "How do I prevent a cache stampede when a hot Redis key expires?",
+      "expectedAnswer": "Use a short lock (SET lock:key 1 EX 5 NX) so a single request rebuilds the hot key while others wait briefly and retry the read. Combine with slightly randomized TTLs so cohorts of keys don't expire together, and optionally stale-while-revalidate (serve the stale value while rebuilding in the background).",
+      "expectedFileNames": ["redis-oom-eviction.md"],
+      "expectedChunks": [
+        { "fileName": "redis-oom-eviction.md", "chunkIndex": 8 }
+      ],
+      "expectedKeywords": ["lock", "NX", "TTL"]
+    },
+    {
+      "id": "para-001",
+      "category": "paraphrase",
+      "question": "Every time our Node service generates a large JSON report it stops answering requests and a single CPU core is pegged at 100%. What is the likely cause and how do we fix it?",
+      "expectedAnswer": "The event loop is being blocked by CPU-bound work (e.g. JSON.parse/stringify on multi-MB payloads). Move the work off the event loop with worker_threads, replace sync calls with async equivalents, paginate/bound the work, and yield in long loops with setImmediate so I/O can drain.",
+      "expectedFileNames": ["nodejs-event-loop-blocking.md"],
+      "expectedKeywords": ["event loop", "worker_threads", "JSON"]
+    },
+    {
+      "id": "para-002",
+      "category": "paraphrase",
+      "question": "Two background jobs update the same rows and Postgres randomly kills one of them with a 500; the log hints at a lock cycle. What is the root cause and the fix?",
+      "expectedAnswer": "A deadlock: the two transactions take row locks on the same rows in different orders, so Postgres detects the cycle and rolls one back. Fix by imposing a global lock order (sort ids before updating, or SELECT ... FOR UPDATE in sorted order), keeping transactions short, and retrying on SQLSTATE 40P01 with jittered backoff.",
+      "expectedFileNames": ["postgres-deadlock.md"],
+      "expectedKeywords": ["deadlock", "order", "retry"]
+    },
+    {
+      "id": "para-003",
+      "category": "paraphrase",
+      "question": "Users keep getting logged out because sessions disappear and our Redis box is at its memory ceiling. What is happening and what should we change?",
+      "expectedAnswer": "Redis hit maxmemory and is evicting keys (evicted_keys climbing). Set an explicit policy for a cache tier — maxmemory at ~70-80% of instance RAM with maxmemory-policy allkeys-lru — and give every cache key a TTL so unbounded growth stops.",
+      "expectedFileNames": ["redis-oom-eviction.md"],
+      "expectedKeywords": ["evict", "maxmemory", "TTL"]
+    },
+    {
+      "id": "para-004",
+      "category": "paraphrase",
+      "question": "Our Node pod restarts every few days with exit status 137 and there is nothing unusual in the application logs. Where should we look?",
+      "expectedAnswer": "Exit 137 = 128 + SIGKILL: the kernel OOM killer killed the container because the cgroup memory limit was lower than what the Node heap wanted (Node sizes its old-space from host memory by default). Check docker stats / cgroup memory.max vs v8 heap_size_limit, then cap the heap with --max-old-space-size below the container limit.",
+      "expectedFileNames": ["docker-container-oom.md"],
+      "expectedKeywords": ["OOM", "max-old-space-size", "cgroup"]
+    },
+    {
+      "id": "para-005",
+      "category": "paraphrase",
+      "question": "Clients with live connections through our reverse proxy get cut at almost exactly the one minute mark, even though the upgrade handshake succeeds with a 101.",
+      "expectedAnswer": "An idle-timeout in the proxy chain is reaping quiet sockets — most often proxy_read_timeout (default 60 s), since WebSockets have no built-in keepalive. Fix with server-side ping/pong heartbeats every 25-30 s to keep frames flowing below every timeout, and raise proxy_read_timeout for the WebSocket location (e.g. 300 s).",
+      "expectedFileNames": ["websocket-drops.md"],
+      "expectedKeywords": ["timeout", "ping", "heartbeat"]
+    },
+    {
+      "id": "err-001",
+      "category": "error_code",
+      "question": "Postgres logs show 'ERROR: deadlock detected (SQLSTATE 40P01)' and some write requests fail with 500. What causes this and how do I fix it?",
+      "expectedAnswer": "Two transactions took row locks on the same rows in different orders, so Postgres detected the lock cycle and killed one (SQLSTATE 40P01). Fix: impose a global lock order (sort ids, or SELECT ... FOR UPDATE in sorted order first), keep transactions short, and retry on 40P01 with jittered backoff.",
+      "expectedFileNames": ["postgres-deadlock.md"],
+      "expectedChunks": [
+        { "fileName": "postgres-deadlock.md", "chunkIndex": 1 },
+        { "fileName": "postgres-deadlock.md", "chunkIndex": 4 }
+      ],
+      "expectedKeywords": ["40P01", "order", "retry"]
+    },
+    {
+      "id": "err-002",
+      "category": "error_code",
+      "question": "We keep getting 'ERROR: too many clients already (SQLSTATE 53300)' from PostgreSQL. How do I find out who is holding the connections?",
+      "expectedAnswer": "The app's connection pool is exhausted. Inspect pg_stat_activity (count by state and application_name; look for hundreds of idle connections or idle-in-transaction sessions pointing at leaks). Fix by sizing pools realistically (max 5-10 per process, under the provider cap), always releasing clients in a finally block, and adding acquire timeouts plus pool metrics; use a transaction-mode pooler for many processes.",
+      "expectedFileNames": ["postgres-pool-exhaustion.md"],
+      "expectedChunks": [
+        { "fileName": "postgres-pool-exhaustion.md", "chunkIndex": 1 },
+        { "fileName": "postgres-pool-exhaustion.md", "chunkIndex": 3 }
+      ],
+      "expectedKeywords": ["pg_stat_activity", "pool", "release"]
+    },
+    {
+      "id": "err-003",
+      "category": "error_code",
+      "question": "Redis writes fail with \"OOM command not allowed when used memory > 'maxmemory'\" — what should we configure?",
+      "expectedAnswer": "Redis hit maxmemory with policy noeviction, so writes are rejected. For a pure cache set maxmemory to ~70-80% of instance RAM and maxmemory-policy allkeys-lru (or volatile-lru), and give every cache key a TTL. Diagnose with redis-cli INFO memory / --bigkeys.",
+      "expectedFileNames": ["redis-oom-eviction.md"],
+      "expectedChunks": [
+        { "fileName": "redis-oom-eviction.md", "chunkIndex": 4 },
+        { "fileName": "redis-oom-eviction.md", "chunkIndex": 7 }
+      ],
+      "expectedKeywords": ["maxmemory", "allkeys-lru", "TTL"]
+    },
+    {
+      "id": "err-004",
+      "category": "error_code",
+      "question": "Nginx logs 'upstream timed out (110: Connection timed out) while reading response header from upstream' and returns 502s. How do I fix it?",
+      "expectedAnswer": "The upstream endpoint is slower than proxy_read_timeout (default 60 s), so Nginx gives up while reading the response header. Set proxy_read_timeout above the app's true worst-case p99, fix the slow upstream (often event-loop blocking or pool exhaustion), enable upstream keepalive with proxy_http_version 1.1 and an empty Connection header, and retry idempotent requests with proxy_next_upstream.",
+      "expectedFileNames": ["nginx-502-upstream.md"],
+      "expectedChunks": [
+        { "fileName": "nginx-502-upstream.md", "chunkIndex": 1 },
+        { "fileName": "nginx-502-upstream.md", "chunkIndex": 2 }
+      ],
+      "expectedKeywords": ["proxy_read_timeout", "keepalive", "p99"]
+    },
+    {
+      "id": "err-005",
+      "category": "error_code",
+      "question": "Nginx error log shows 'upstream prematurely closed connection' — what does it mean and how do I stop it?",
+      "expectedAnswer": "The upstream closed the connection mid-response — usually idle keepalive connections closed by the app sooner than Nginx reuses them (e.g. behind a pooler or after an app restart), or the app crashing. Enable upstream keepalive (keepalive 32) with proxy_http_version 1.1 and proxy_set_header Connection \"\" so Nginx stops reusing dead connections, and make sure the app logs slow requests.",
+      "expectedFileNames": ["nginx-502-upstream.md"],
+      "expectedChunks": [
+        { "fileName": "nginx-502-upstream.md", "chunkIndex": 1 },
+        { "fileName": "nginx-502-upstream.md", "chunkIndex": 3 }
+      ],
+      "expectedKeywords": ["keepalive", "proxy_http_version", "Connection"]
+    },
+    {
+      "id": "multi-001",
+      "category": "multi_doc",
+      "question": "Nginx intermittently returns 502 for our slow Node.js endpoints, and WebSocket clients behind the same proxy reconnect every 60 seconds. How do we fix both problems?",
+      "expectedAnswer": "Both trace to proxy timeouts. For the 502s: raise proxy_read_timeout above the slowest legitimate endpoint's p99 and fix the slow upstream; enable upstream keepalive (proxy_http_version 1.1, empty Connection header). For the WebSockets: server-side ping/pong heartbeats every 25-30 s keep frames flowing below the idle timeout, plus a dedicated location with Upgrade/Connection headers, proxy_buffering off, and proxy_read_timeout raised (e.g. 300 s).",
+      "expectedFileNames": ["nginx-502-upstream.md", "websocket-drops.md"],
+      "expectedKeywords": ["proxy_read_timeout", "ping", "keepalive"]
+    },
+    {
+      "id": "multi-002",
+      "category": "multi_doc",
+      "question": "Our Node upstream behind Nginx becomes unresponsive under load — one CPU core is pinned at 100% while health checks time out — and Nginx starts returning 502s. What should we fix on the app and on the proxy?",
+      "expectedAnswer": "On the app: the event loop is blocked by CPU-bound work — measure event loop lag, profile with node --prof, move work to worker_threads, replace sync calls with async equivalents, and yield in long loops. On the proxy: set proxy_read_timeout above the app's worst-case p99, enable upstream keepalive, and use proxy_next_upstream for idempotent retries so slow endpoints surface as app metrics instead of gateway errors.",
+      "expectedFileNames": ["nodejs-event-loop-blocking.md", "nginx-502-upstream.md"],
+      "expectedKeywords": ["event loop", "worker_threads", "proxy_read_timeout"]
+    },
+    {
+      "id": "multi-003",
+      "category": "multi_doc",
+      "question": "Postgres is falling over under load: we see 'too many clients already' errors while concurrent updates deadlock. How do we stabilize the database?",
+      "expectedAnswer": "Two separate issues. Pool exhaustion (53300): check pg_stat_activity for idle/leaking connections, size pools to 5-10 per process under the provider cap, always release clients in finally, add acquire timeouts, and use a transaction-mode pooler for many processes. Deadlocks (40P01): impose a global row-lock order (sort ids or SELECT ... FOR UPDATE in order), keep transactions short — long-held connections inside transactions make both problems worse — and retry on 40P01.",
+      "expectedFileNames": ["postgres-pool-exhaustion.md", "postgres-deadlock.md"],
+      "expectedKeywords": ["pool", "order", "release"]
+    },
+    {
+      "id": "off-001",
+      "category": "off_topic",
+      "question": "What is the best recipe for neapolitan pizza dough?",
+      "expectedAnswer": "Not covered by the knowledge base — the assistant must abstain (insufficient-information response, no LLM call).",
+      "expectedFileNames": [],
+      "expectedKeywords": []
+    },
+    {
+      "id": "off-002",
+      "category": "off_topic",
+      "question": "How do I renew my passport and what documents do I need to bring?",
+      "expectedAnswer": "Not covered by the knowledge base — the assistant must abstain (insufficient-information response, no LLM call).",
+      "expectedFileNames": [],
+      "expectedKeywords": []
+    },
+    {
+      "id": "off-003",
+      "category": "off_topic",
+      "question": "How do I configure Kubernetes RBAC roles for a multi-tenant cluster?",
+      "expectedAnswer": "Not covered by the knowledge base (incident docs mention Kubernetes only in passing) — the assistant must abstain. This item probes the threshold's behavior on tech-sounding but absent topics.",
+      "expectedFileNames": [],
+      "expectedKeywords": []
+    },
+    {
+      "id": "off-004",
+      "category": "off_topic",
+      "question": "Which guitar chords should a beginner learn first?",
+      "expectedAnswer": "Not covered by the knowledge base — the assistant must abstain (insufficient-information response, no LLM call).",
+      "expectedFileNames": [],
+      "expectedKeywords": []
+    },
+    {
+      "id": "off-005",
+      "category": "off_topic",
+      "question": "How should I prepare to negotiate a higher salary at my first software engineering job?",
+      "expectedAnswer": "Not covered by the knowledge base — the assistant must abstain (insufficient-information response, no LLM call).",
+      "expectedFileNames": [],
+      "expectedKeywords": []
+    }
+  ]
+}

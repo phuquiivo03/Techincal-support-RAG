@@ -2,6 +2,10 @@ import type {
   ChatResponse,
   ChatRole,
   DocumentSummary,
+  EvalDatasetInfo,
+  EvalRunDetail,
+  EvalRunSummary,
+  EvalSuite,
   HealthResponse,
   KnowledgeBaseStats,
   RetrieveRequest,
@@ -80,4 +84,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify(req),
     }),
+
+  evalDatasets: () => request<{ datasets: EvalDatasetInfo[] }>("/api/eval/datasets"),
+
+  evalRuns: (suite?: EvalSuite) => request<{ runs: EvalRunSummary[] }>(`/api/eval/runs${suite ? `?suite=${suite}` : ""}`),
+
+  evalRun: (id: string) => request<EvalRunDetail>(`/api/eval/runs/${id}`),
+
+  startEvalRun: (datasetVersion: string, label?: string) =>
+    request<EvalRunDetail>("/api/eval/runs", {
+      method: "POST",
+      body: JSON.stringify({ datasetVersion, label: label || undefined }),
+    }),
+
+  deleteEvalRun: (id: string) =>
+    request<{ deleted: boolean }>(`/api/eval/runs/${id}`, { method: "DELETE" }),
 };

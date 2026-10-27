@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/chat", label: "Chat" },
   { href: "/documents", label: "Documents" },
   { href: "/debugger", label: "Debugger" },
+  { href: "/eval", label: "Eval" },
 ];
 
 /** Floating pill nav: 70% white, blur-20px, coral-dot logo (DESIGN_GUIDE §5). */
